@@ -21,22 +21,23 @@ docker compose up --build
 
 Архитектура и логика
 ├── app/
-│   ├── bot.py            # Телеграм-бот и обработка команд
-│   ├── main.py           # Точка входа
-│   ├── db.py             # Работа с PostgreSQL
-│   ├── config.py         # Загрузка конфигурации из .env
-│   ├── nlp.py            # NLP + LLM + генерация SQL
-│   ├── query_builder.py  # Построение SQL-запросов
-│   ├── apply_migrations.py # SQL-инициализация
-│   ├── load_json.py      # Загрузка JSON-данных
-│   └── logging.conf      # Конфиг логгера
+│ ├── bot.py # Телеграм-бот и обработка команд
+│ ├── main.py # Точка входа приложения
+│ ├── db.py # Работа с PostgreSQL
+│ ├── config.py # Загрузка конфигурации из .env
+│ ├── nlp.py # Вызов LLM и извлечение структуры запроса
+│ ├── query_builder.py # Преобразование структуры в SQL
+│ ├── apply_migrations.py # Применение SQL-моделей
+│ ├── load_json.py # Загрузка JSON данных
+│ └── logger.py # Логирование
 ├── data/
-│   └── videos.json       # Исходные данные
-├── migrations.sql        # SQL-структура таблиц
+│ └── videos.json # Исходные данные
+├── migrations.sql # SQL-схема таблиц
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
-└── README.md
+├── README.md
+└──.env
 
 
 Промпт:
