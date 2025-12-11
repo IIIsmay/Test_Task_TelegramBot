@@ -1,14 +1,14 @@
 # Test_Task_TelegramBot
 Бот, который отвечает на текстовые запросы о видео-статистике (просмотры, лайки и пр.), преобразуя их в SQL-запросы и выполняя обращения к базе данных. В качестве движка обработки естественного языка используется LLM (OpenRouter).
 
-##Настройка Telegram токена:
+## Настройка Telegram токена:
 1. Перейдите в @BotFather
 2. Создайте бота командой /newbot
 3. Получите BOT_TOKEN
 4. Вставьте его в .env
 6. BOT_TOKEN=ваш_токен_от_BotFather
 
-##Создайте .env файл в корне:
+## Создайте .env файл в корне:
 BOT_TOKEN=ваш_telegram_token
 DATABASE_URL=postgresql://user:password@db:5432/video_db
 AI_PROVIDER=openrouter
@@ -16,10 +16,10 @@ OPENROUTER_API_KEY=ваш_openrouter_ключ
 OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
 
 
-##Затем запустите:
+## Затем запустите:
 docker compose up --build
 
-##Архитектура и логика
+## Архитектура и логика
 ├── app/
 │ ├── bot.py # Телеграм-бот и обработка команд
 │ ├── main.py # Точка входа приложения
@@ -40,7 +40,7 @@ docker compose up --build
 └──.env
 
 
-##Промпт:
+## Промпт:
 """
 Ты ассистент, который переводит русскоязычные запросы пользователя
 в СТРОГО ВАЛИДНЫЙ JSON без пояснений и без текста вокруг.
