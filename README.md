@@ -9,11 +9,11 @@
 6. BOT_TOKEN=ваш_токен_от_BotFather
 
 ## Создайте .env файл в корне:
- BOT_TOKEN=ваш_telegram_token
- DATABASE_URL=postgresql://user:password@db:5432/video_db
- AI_PROVIDER=openrouter
- OPENROUTER_API_KEY=ваш_openrouter_ключ
- OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
+1. BOT_TOKEN=ваш_telegram_token
+2. DATABASE_URL=postgresql://user:password@db:5432/video_db
+3. AI_PROVIDER=openrouter
+4. OPENROUTER_API_KEY=ваш_openrouter_ключ
+5. OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
 
 
 ## Затем запустите:
