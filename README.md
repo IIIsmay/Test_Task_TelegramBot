@@ -9,35 +9,35 @@
 6. BOT_TOKEN=ваш_токен_от_BotFather
 
 ## Создайте .env файл в корне:
-1. BOT_TOKEN=ваш_telegram_token
-2. DATABASE_URL=postgresql://user:password@db:5432/video_db
-3. AI_PROVIDER=openrouter
-4. OPENROUTER_API_KEY=ваш_openrouter_ключ
-5. OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
+- BOT_TOKEN=ваш_telegram_token
+- DATABASE_URL=postgresql://user:password@db:5432/video_db
+- AI_PROVIDER=openrouter
+- OPENROUTER_API_KEY=ваш_openrouter_ключ
+- OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
 
 
 ## Затем запустите:
 docker compose up --build
 
 ## Архитектура и логика
-├── app/
-│ ├── bot.py # Телеграм-бот и обработка команд
-│ ├── main.py # Точка входа приложения
-│ ├── db.py # Работа с PostgreSQL
-│ ├── config.py # Загрузка конфигурации из .env
-│ ├── nlp.py # Вызов LLM и извлечение структуры запроса
-│ ├── query_builder.py # Преобразование структуры в SQL
-│ ├── apply_migrations.py # Применение SQL-моделей
-│ ├── load_json.py # Загрузка JSON данных
-│ └── logger.py # Логирование
-├── data/
-│ └── videos.json # Исходные данные
-├── migrations.sql # SQL-схема таблиц
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-├── README.md
-└──.env
+-── app/
+-── bot.py # Телеграм-бот и обработка команд
+- ├── main.py # Точка входа приложения
+- ├── db.py # Работа с PostgreSQL
+- ├── config.py # Загрузка конфигурации из .env
+- ├── nlp.py # Вызов LLM и извлечение структуры запроса
+- ├── query_builder.py # Преобразование структуры в SQL
+- ├── apply_migrations.py # Применение SQL-моделей
+- ├── load_json.py # Загрузка JSON данных
+- └── logger.py # Логирование
+-── data/
+- └── videos.json # Исходные данные
+-── migrations.sql # SQL-схема таблиц
+-── requirements.txt
+-── Dockerfile
+-── docker-compose.yml
+-── README.md
+-──.env
 
 
 ## Промпт:
