@@ -19,14 +19,19 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
         filters,
     )
 
+    # ============================
+    # COUNT VIDEOS
+    # ============================
     if query_type == "count_videos":
         clauses = []
         params = []
 
+        # Фильтр по creator_id
         if filters.get("creator_id"):
             params.append(filters["creator_id"])
             clauses.append(f"creator_id = ${len(params)}")
 
+        # Фильтры по дате создания
         if filters.get("video_created_at_from"):
             params.append(date.fromisoformat(filters["video_created_at_from"]))
             clauses.append(f"video_created_at::date >= ${len(params)}")
@@ -35,38 +40,42 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
             params.append(date.fromisoformat(filters["video_created_at_to"]))
             clauses.append(f"video_created_at::date <= ${len(params)}")
 
+        # Фильтр: просмотры > N (final views)
         if filters.get("final_views_gt") is not None:
             params.append(filters["final_views_gt"])
             clauses.append(f"views_count > ${len(params)}")
 
+        # Построение WHERE
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
 
-        return await fetchval(
-            f"SELECT COUNT(*) FROM videos {where}",
-            *params
-        )
+        sql = f"SELECT COUNT(*) FROM videos {where}"
+        logger.info("SQL = %s params=%s", sql, params)
 
+        return await fetchval(sql, *params)
+
+    # ============================
+    # SUM Δ METRIC
+    # ============================
     if query_type == "sum_delta_metric":
         d = date.fromisoformat(filters["snapshot_date"])
-        return await fetchval(
-            f"""
+        sql = f"""
             SELECT COALESCE(SUM(delta_{metric}_count), 0)
             FROM video_snapshots
             WHERE created_at::date = $1
-            """,
-            d,
-        )
+        """
+        return await fetchval(sql, d)
 
+    # ============================
+    # COUNT DISTINCT VIDEOS WITH DELTA > 0
+    # ============================
     if query_type == "count_distinct_videos_delta_gt_zero":
         d = date.fromisoformat(filters["snapshot_date"])
-        return await fetchval(
-            f"""
+        sql = f"""
             SELECT COUNT(DISTINCT video_id)
             FROM video_snapshots
             WHERE created_at::date = $1
               AND delta_{metric}_count > 0
-            """,
-            d,
-        )
+        """
+        return await fetchval(sql, d)
 
     raise ValueError(f"Unknown query_type: {query_type}")

@@ -1,15 +1,14 @@
 import json
 import logging
-from typing import Any, Dict
-
 import requests
 
 from app.config import Settings
 
 logger = logging.getLogger(__name__)
+settings = Settings()
 
 SYSTEM_PROMPT = """
-Ты ассистент, который переводит русскоязычные запросы пользователя
+Ты ассистент, который переводит русскоязычный запрос пользователя
 в СТРОГО ВАЛИДНЫЙ JSON без пояснений и без текста вокруг.
 
 Есть база данных PostgreSQL с таблицами:
@@ -47,67 +46,88 @@ video_snapshots:
 }
 
 Правила:
-- "Сколько всего видео" → count_videos
-- "Сколько видео у креатора X с даты A по B" → count_videos + creator_id + даты
-- "Сколько видео набрало больше N просмотров" → count_videos + final_views_gt
-- "На сколько просмотров выросли все видео ДАТА" → sum_delta_metric + metric=views
-- "Сколько разных видео получали новые просмотры ДАТА"
-  → count_distinct_videos_delta_gt_zero + metric=views
 
-Ответ:
-- ТОЛЬКО JSON
-- без комментариев
-- без текста
+1) "Сколько всего видео"
+→ query_type="count_videos"
+
+2) "Сколько видео у креатора X"
+→ query_type="count_videos" + filters.creator_id
+
+3) "Сколько видео у креатора X с даты A по дату B"
+→ query_type="count_videos" + creator_id + date_from + date_to
+
+4) "Сколько видео набрало больше N просмотров"
+→ query_type="count_videos" + final_views_gt
+
+5) "Сколько видео у креатора X набрали больше N просмотров"
+→ query_type="count_videos" + creator_id + final_views_gt
+
+6) "На сколько просмотров выросли все видео ДАТА"
+→ query_type="sum_delta_metric" + metric="views" + snapshot_date
+
+7) "Сколько разных видео получали новые просмотры ДАТА"
+→ query_type="count_distinct_videos_delta_gt_zero" + metric="views" + snapshot_date
+
+8) Условия могут сочетаться:
+   - creator_id + final_views_gt
+   - creator_id + даты
+   - final_views_gt + даты
+   - creator_id + даты + final_views_gt
+
+Всегда возвращай один объект JSON.
+
+Ответ: только JSON без текста.
 """
 
-def get_settings() -> Settings:
-    return Settings()
 
-
-def call_llm(messages) -> Dict[str, Any]:
-    settings = get_settings()
-
+def call_llm(messages):
     if settings.ai_provider != "openrouter":
         raise RuntimeError("AI_PROVIDER должен быть openrouter")
 
-    if not settings.openrouter_api_key:
-        raise RuntimeError("OPENROUTER_API_KEY не задан")
+    url = "https://openrouter.ai/api/v1/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Referer": "https://github.com/doxi-ai/video-analytics-bot",
+        "X-Title": "video-analytics-bot"
+    }
+
+    payload = {
+        "model": settings.openrouter_model,
+        "messages": messages,
+        "temperature": 0
+    }
 
     logger.info("Calling OpenRouter model=%s", settings.openrouter_model)
 
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {settings.openrouter_api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost",
-            "X-Title": "telegram-video-analytics-bot",
-        },
-        json={
-            "model": settings.openrouter_model,
-            "messages": messages,
-            "temperature": 0,
-        },
-        timeout=30,
-    )
+    response = requests.post(url, headers=headers, json=payload)
 
-    response.raise_for_status()
-    content = response.json()["choices"][0]["message"]["content"]
+    if response.status_code != 200:
+        logger.error("OpenRouter error %s: %s", response.status_code, response.text)
+        response.raise_for_status()
 
-    logger.info("LLM raw response: %s", content)
+    data = response.json()
+    content = data["choices"][0]["message"]["content"].strip()
 
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        raise ValueError(f"Invalid JSON from LLM:\n{content}")
+    logger.info("LLM raw output: %s", content)
+
+    return content
 
 
-async def parse_query(user_text: str) -> Dict[str, Any]:
-    logger.info("Parsing user query: %s", user_text)
+async def parse_query(text: str):
+    logger.info("Parsing user query: %s", text)
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_text},
+        {"role": "user", "content": text},
     ]
 
-    return call_llm(messages)
+    llm_output = call_llm(messages)
+
+    try:
+        parsed = json.loads(llm_output)
+        logger.info("Parsed JSON: %s", parsed)
+        return parsed
+    except Exception as e:
+        logger.error("Failed to parse JSON: %s", e)
+        raise RuntimeError("LLM вернул невалидный JSON")
