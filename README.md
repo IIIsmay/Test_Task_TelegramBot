@@ -20,8 +20,8 @@
 docker compose up --build
 
 ## Архитектура и логика
--── app/
--── bot.py # Телеграм-бот и обработка команд
+- ── app/
+- ── bot.py # Телеграм-бот и обработка команд
 - ├── main.py # Точка входа приложения
 - ├── db.py # Работа с PostgreSQL
 - ├── config.py # Загрузка конфигурации из .env
@@ -30,14 +30,14 @@ docker compose up --build
 - ├── apply_migrations.py # Применение SQL-моделей
 - ├── load_json.py # Загрузка JSON данных
 - └── logger.py # Логирование
--── data/
+- ── data/
 - └── videos.json # Исходные данные
--── migrations.sql # SQL-схема таблиц
--── requirements.txt
--── Dockerfile
--── docker-compose.yml
--── README.md
--──.env
+- ── migrations.sql # SQL-схема таблиц
+- ── requirements.txt
+- ── Dockerfile
+- ── docker-compose.yml
+- ── README.md
+- ──.env
 
 
 ## Промпт:
