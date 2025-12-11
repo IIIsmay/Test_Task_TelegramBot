@@ -34,7 +34,10 @@ video_snapshots:
 Верни JSON строго такого формата:
 
 {
-  "query_type": "count_videos" | "sum_delta_metric" | "count_distinct_videos_delta_gt_zero",
+  "query_type": "count_videos" |
+                 "sum_delta_metric" |
+                 "count_distinct_videos_delta_gt_zero" |
+                 "count_negative_delta",
   "metric": "views" | "likes" | "comments" | "reports" | null,
   "filters": {
     "creator_id": string | null,
@@ -48,36 +51,39 @@ video_snapshots:
 Правила:
 
 1) "Сколько всего видео"
-→ query_type="count_videos"
+→ count_videos
 
 2) "Сколько видео у креатора X"
-→ query_type="count_videos" + filters.creator_id
+→ count_videos + creator_id
 
-3) "Сколько видео у креатора X с даты A по дату B"
-→ query_type="count_videos" + creator_id + date_from + date_to
+3) "Сколько видео у креатора X с даты A по B"
+→ count_videos + creator_id + video_created_at_from/to
 
 4) "Сколько видео набрало больше N просмотров"
-→ query_type="count_videos" + final_views_gt
+→ count_videos + final_views_gt
 
 5) "Сколько видео у креатора X набрали больше N просмотров"
-→ query_type="count_videos" + creator_id + final_views_gt
+→ count_videos + creator_id + final_views_gt
 
 6) "На сколько просмотров выросли все видео ДАТА"
-→ query_type="sum_delta_metric" + metric="views" + snapshot_date
+→ sum_delta_metric + metric=views + snapshot_date
 
-7) "Сколько разных видео получали новые просмотры ДАТА"
-→ query_type="count_distinct_videos_delta_gt_zero" + metric="views" + snapshot_date
+7) "Сколько разных видео получили новые просмотры ДАТА"
+→ count_distinct_videos_delta_gt_zero + metric=views + snapshot_date
 
-8) Условия могут сочетаться:
+8) "Сколько замеров / снэпшотов, где просмотры уменьшились / отрицательные просмотры / уменьшилось число просмотров"
+→ count_negative_delta + metric=views
+
+9) Условия могут сочетаться:
    - creator_id + final_views_gt
    - creator_id + даты
    - final_views_gt + даты
    - creator_id + даты + final_views_gt
 
-Всегда возвращай один объект JSON.
-
-Ответ: только JSON без текста.
+Ответ:
+Только JSON.
 """
+
 
 
 def call_llm(messages):
