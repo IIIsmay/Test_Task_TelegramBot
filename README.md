@@ -41,6 +41,7 @@ docker compose up --build
 
 
 ## Промпт:
+"""
 Ты ассистент, который переводит русскоязычный запрос пользователя
 в СТРОГО ВАЛИДНЫЙ JSON без пояснений и без текста вокруг.
 
@@ -64,16 +65,17 @@ video_snapshots:
 - delta_reports_count
 - created_at (timestamptz)
 
-Верни JSON строго такого формата:
+Возвращай JSON строго такого формата:
 
 {
   "query_type":
-    "count_videos"
-    | "sum_delta_metric"
-    | "count_distinct_videos_delta_gt_zero"
-    | "sum_final_metric"
-    | "count_negative_deltas"
-    | "sum_delta_metric_interval",
+      "count_videos" |
+      "sum_delta_metric" |
+      "count_distinct_videos_delta_gt_zero" |
+      "sum_final_metric" |
+      "sum_delta_metric_interval" |
+      "count_negative_deltas" |
+      "count_creators_with_video_condition",
 
   "metric": "views" | "likes" | "comments" | "reports" | null,
 
@@ -91,48 +93,44 @@ video_snapshots:
 Правила:
 
 1) "Сколько всего видео"
-→ count_videos
+   → query_type="count_videos"
 
 2) "Сколько видео у креатора X"
-→ count_videos + creator_id
+   → count_videos + creator_id
 
-3) "Сколько видео у креатора X с даты A по дату B"
-→ count_videos + creator_id + date_from + date_to
+3) "Сколько видео в периоде / с даты A по B / в июне"
+   → count_videos + date_from + date_to
 
 4) "Сколько видео набрало больше N просмотров"
-→ count_videos + final_views_gt
+   → count_videos + final_views_gt
 
-5) "Сколько видео у креатора X набрали больше N просмотров"
-→ count_videos + creator_id + final_views_gt
+5) "Сколько видео у креатора X набрали больше N"
+   → count_videos + creator_id + final_views_gt
 
 6) "На сколько просмотров выросли все видео ДАТА"
-→ sum_delta_metric + metric=views + snapshot_date
+   → sum_delta_metric + metric="views" + snapshot_date
 
 7) "Сколько разных видео получали новые просмотры ДАТА"
-→ count_distinct_videos_delta_gt_zero + metric=views + snapshot_date
+   → count_distinct_videos_delta_gt_zero + metric="views" + snapshot_date
 
-8) "Сколько всего просмотров набрали видео"
-→ sum_final_metric + metric=views
+8) "Сколько всего просмотров/лайков/комментариев/репортов у всех видео"
+   → sum_final_metric + metric
 
-9) "Сколько всего лайков, комментариев, жалоб"
-→ sum_final_metric + metric=<likes/comments/reports>
+9) "Сколько просмотров/лайков и т.п. набрали видео за период"
+   → sum_final_metric + metric + date_from/to
 
-10) Периоды ("в июне 2025", "с 1 по 5 ноября")
-→ video_created_at_from / to
+10) "В промежутке с 10:00 до 15:00"
+    → snapshot_time_from / snapshot_time_to
 
-11) Отрицательные изменения просмотров
-→ count_negative_deltas + metric=views
+11) "Сколько суммарно выросли просмотры в интервале времени"
+    → query_type="sum_delta_metric_interval" + metric="views"
 
-12) Временной интервал:
-    "в промежутке с 10:00 до 15:00",
-    "между X и Y часами",
-    "с 08:00 до 11:00"
-→ query_type = sum_delta_metric_interval
-→ metric = views
-→ snapshot_date + snapshot_time_from + snapshot_time_to
+12) "Когда просмотры уменьшились / были отрицательные дельты"
+    → query_type="count_negative_deltas" + metric=<views/likes/comments/reports>
 
-Ответ:
-- только JSON
-- без комментариев
-- без текста
+13) "Сколько разных креаторов имеют хотя бы одно видео с условием"
+    например "больше 100 000 просмотров"
+    → query_type="count_creators_with_video_condition" + final_views_gt=N
+
+Ответ — строго JSON без текста.
 """
