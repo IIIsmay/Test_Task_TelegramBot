@@ -34,13 +34,17 @@ video_snapshots:
 Возвращай JSON строго такого формата:
 
 {
-  "query_type": "count_videos"
-               | "sum_delta_metric"
-               | "count_distinct_videos_delta_gt_zero"
-               | "sum_final_metric"
-               | "sum_delta_metric_interval"
-               | "count_negative_deltas",
+  "query_type":
+      "count_videos" |
+      "sum_delta_metric" |
+      "count_distinct_videos_delta_gt_zero" |
+      "sum_final_metric" |
+      "sum_delta_metric_interval" |
+      "count_negative_deltas" |
+      "count_creators_with_video_condition",
+
   "metric": "views" | "likes" | "comments" | "reports" | null,
+
   "filters": {
     "creator_id": string | null,
     "video_created_at_from": "YYYY-MM-DD" | null,
@@ -78,22 +82,25 @@ video_snapshots:
 8) "Сколько всего просмотров/лайков/комментариев/репортов у всех видео"
    → sum_final_metric + metric
 
-9) "Сколько просмотров/лайков/комментариев/репортов набрали видео за период"
+9) "Сколько просмотров/лайков и т.п. набрали видео за период"
    → sum_final_metric + metric + date_from/to
 
 10) "В промежутке с 10:00 до 15:00"
-    → snapshot_time_from + snapshot_time_to
+    → snapshot_time_from / snapshot_time_to
 
 11) "Сколько суммарно выросли просмотры в интервале времени"
     → query_type="sum_delta_metric_interval" + metric="views"
 
-12) "Сколько было отрицательных изменений просмотров / упало просмотров"
-    → query_type="count_negative_deltas" + metric="views"
+12) "Когда просмотры уменьшились / были отрицательные дельты"
+    → query_type="count_negative_deltas" + metric=<views/likes/comments/reports>
 
-13) Если метрика не упомянута — metric=null.
+13) "Сколько разных креаторов имеют хотя бы одно видео с условием"
+    например "больше 100 000 просмотров"
+    → query_type="count_creators_with_video_condition" + final_views_gt=N
 
-Ответ — строго JSON без текста, без комментариев.
+Ответ — строго JSON без текста.
 """
+
 
 
 
