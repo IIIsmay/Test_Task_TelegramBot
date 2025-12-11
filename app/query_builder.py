@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Dict, Any
 import logging
+
 from app.db import fetchval
 
 logger = logging.getLogger(__name__)
@@ -11,10 +12,14 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
     metric = query_struct.get("metric")
     filters = query_struct.get("filters", {})
 
-    logger.info("Execute query_type=%s metric=%s filters=%s",
-                query_type, metric, filters)
+    logger.info(
+        "Execute query_type=%s metric=%s filters=%s",
+        query_type, metric, filters
+    )
 
-    # === count_videos ===
+    # -------------------------------------------------------------------------
+    # COUNT VIDEOS
+    # -------------------------------------------------------------------------
     if query_type == "count_videos":
         clauses = []
         params = []
@@ -36,19 +41,33 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
             clauses.append(f"views_count > ${len(params)}")
 
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
-        return await fetchval(f"SELECT COUNT(*) FROM videos {where}", *params)
 
-    # === sum_delta_metric ===
-    if query_type == "sum_delta_metric":
-        d = date.fromisoformat(filters["snapshot_date"])
         return await fetchval(
-            f"SELECT COALESCE(SUM(delta_{metric}_count),0) "
-            "FROM video_snapshots WHERE created_at::date = $1", d
+            f"SELECT COUNT(*) FROM videos {where}",
+            *params
         )
 
-    # === count_distinct_videos_delta_gt_zero ===
+    # -------------------------------------------------------------------------
+    # SUM DELTA METRIC (по дате)
+    # -------------------------------------------------------------------------
+    if query_type == "sum_delta_metric":
+        d = date.fromisoformat(filters["snapshot_date"])
+
+        return await fetchval(
+            f"""
+            SELECT COALESCE(SUM(delta_{metric}_count), 0)
+            FROM video_snapshots
+            WHERE created_at::date = $1
+            """,
+            d
+        )
+
+    # -------------------------------------------------------------------------
+    # COUNT DISTINCT VIDEOS WHERE delta > 0
+    # -------------------------------------------------------------------------
     if query_type == "count_distinct_videos_delta_gt_zero":
         d = date.fromisoformat(filters["snapshot_date"])
+
         return await fetchval(
             f"""
             SELECT COUNT(DISTINCT video_id)
@@ -56,10 +75,12 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
             WHERE created_at::date = $1
               AND delta_{metric}_count > 0
             """,
-            d,
+            d
         )
 
-    # === sum_final_metric ===
+    # -------------------------------------------------------------------------
+    # SUM FINAL METRIC по videos
+    # -------------------------------------------------------------------------
     if query_type == "sum_final_metric":
         clauses = []
         params = []
@@ -77,23 +98,31 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
             clauses.append(f"video_created_at::date <= ${len(params)}")
 
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
+
         return await fetchval(
-            f"SELECT COALESCE(SUM({metric}_count),0) FROM videos {where}",
+            f"SELECT COALESCE(SUM({metric}_count), 0) FROM videos {where}",
             *params
         )
 
-    # === count_negative_deltas ===
+    # -------------------------------------------------------------------------
+    # COUNT NEGATIVE DELTAS
+    # -------------------------------------------------------------------------
     if query_type == "count_negative_deltas":
         return await fetchval(
-            "SELECT COUNT(*) FROM video_snapshots WHERE delta_views_count < 0"
+            """
+            SELECT COUNT(*)
+            FROM video_snapshots
+            WHERE delta_views_count < 0
+            """
         )
 
-    # === sum_delta_metric_interval (НОВЫЙ!) ===
+    # -------------------------------------------------------------------------
+    # SUM DELTA METRIC WITH TIME INTERVAL (КРИТИЧЕСКИЙ БЛОК)
+    # -------------------------------------------------------------------------
     if query_type == "sum_delta_metric_interval":
-        d = date.fromisoformat(filters["snapshot_date"])
-        tf = filters["snapshot_time_from"]
-        tt = filters["snapshot_time_to"]
-
+        snapshot_date = date.fromisoformat(filters["snapshot_date"])
+        time_from = filters["snapshot_time_from"]
+        time_to = filters["snapshot_time_to"]
         creator = filters.get("creator_id")
 
         return await fetchval(
@@ -106,7 +135,8 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
               AND s.created_at::time >= $3
               AND s.created_at::time <= $4
             """,
-            creator, d, tf, tt
+            creator, snapshot_date, time_from, time_to
         )
 
+    # Unknown query type
     raise ValueError(f"Unknown query_type: {query_type}")

@@ -34,10 +34,10 @@ video_snapshots:
 Верни JSON строго такого формата:
 
 {
-  "query_type": 
-    "count_videos" 
-    | "sum_delta_metric" 
-    | "count_distinct_videos_delta_gt_zero" 
+  "query_type":
+    "count_videos"
+    | "sum_delta_metric"
+    | "count_distinct_videos_delta_gt_zero"
     | "sum_final_metric"
     | "count_negative_deltas"
     | "sum_delta_metric_interval",
@@ -58,7 +58,7 @@ video_snapshots:
 Правила:
 
 1) "Сколько всего видео"
-→ query_type="count_videos"
+→ count_videos
 
 2) "Сколько видео у креатора X"
 → count_videos + creator_id
@@ -73,30 +73,37 @@ video_snapshots:
 → count_videos + creator_id + final_views_gt
 
 6) "На сколько просмотров выросли все видео ДАТА"
-→ sum_delta_metric + metric="views" + snapshot_date
+→ sum_delta_metric + metric=views + snapshot_date
 
 7) "Сколько разных видео получали новые просмотры ДАТА"
-→ count_distinct_videos_delta_gt_zero + metric="views" + snapshot_date
+→ count_distinct_videos_delta_gt_zero + metric=views + snapshot_date
 
-8) "Какое суммарное количество просмотров набрали видео"
-→ query_type="sum_final_metric" + metric="views"
+8) "Сколько всего просмотров набрали видео"
+→ sum_final_metric + metric=views
 
-9) "Сколько всего лайков / комментариев / репортов у всех видео"
+9) "Сколько всего лайков, комментариев, жалоб"
 → sum_final_metric + metric=<likes/comments/reports>
 
-10) Периоды ("в июне 2025", "в 2025", "с 1 по 10 ноября")
-→ добавляй video_created_at_from и video_created_at_to
+10) Периоды ("в июне 2025", "с 1 по 5 ноября")
+→ video_created_at_from / to
 
-11) "Сколько замеров, где просмотры уменьшились" / "отрицательные просмотры"
-→ query_type="count_negative_deltas" + metric="views"
+11) Отрицательные изменения просмотров
+→ count_negative_deltas + metric=views
 
-12) "На сколько просмотров выросли в промежутке с 10:00 до 15:00 ДАТА"
-→ query_type="sum_delta_metric_interval"
-→ metric="views"
+12) Временной интервал:
+    "в промежутке с 10:00 до 15:00",
+    "между X и Y часами",
+    "с 08:00 до 11:00"
+→ query_type = sum_delta_metric_interval
+→ metric = views
 → snapshot_date + snapshot_time_from + snapshot_time_to
 
-Ответ: только JSON, без текста, без комментариев.
+Ответ:
+- только JSON
+- без комментариев
+- без текста
 """
+
 
 
 
