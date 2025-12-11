@@ -34,10 +34,7 @@ video_snapshots:
 Верни JSON строго такого формата:
 
 {
-  "query_type": "count_videos" |
-                 "sum_delta_metric" |
-                 "count_distinct_videos_delta_gt_zero" |
-                 "count_negative_delta",
+  "query_type": "count_videos" | "sum_delta_metric" | "count_distinct_videos_delta_gt_zero" | "sum_final_metric",
   "metric": "views" | "likes" | "comments" | "reports" | null,
   "filters": {
     "creator_id": string | null,
@@ -51,13 +48,13 @@ video_snapshots:
 Правила:
 
 1) "Сколько всего видео"
-→ count_videos
+→ query_type="count_videos"
 
 2) "Сколько видео у креатора X"
 → count_videos + creator_id
 
-3) "Сколько видео у креатора X с даты A по B"
-→ count_videos + creator_id + video_created_at_from/to
+3) "Сколько видео у креатора X с даты A по дату B"
+→ count_videos + creator_id + date_from + date_to
 
 4) "Сколько видео набрало больше N просмотров"
 → count_videos + final_views_gt
@@ -66,24 +63,26 @@ video_snapshots:
 → count_videos + creator_id + final_views_gt
 
 6) "На сколько просмотров выросли все видео ДАТА"
-→ sum_delta_metric + metric=views + snapshot_date
+→ sum_delta_metric + metric="views" + snapshot_date
 
-7) "Сколько разных видео получили новые просмотры ДАТА"
-→ count_distinct_videos_delta_gt_zero + metric=views + snapshot_date
+7) "Сколько разных видео получали новые просмотры ДАТА"
+→ count_distinct_videos_delta_gt_zero + metric="views" + snapshot_date
 
-8) "Сколько замеров / снэпшотов, где просмотры уменьшились / отрицательные просмотры / уменьшилось число просмотров"
-→ count_negative_delta + metric=views
+8) "Какое суммарное количество просмотров набрали видео"
+→ query_type="sum_final_metric" + metric="views"
 
-9) Условия могут сочетаться:
-   - creator_id + final_views_gt
-   - creator_id + даты
-   - final_views_gt + даты
-   - creator_id + даты + final_views_gt
+9) "Сколько всего лайков / комментариев / репортов у всех видео"
+→ sum_final_metric + metric=<likes/comments/reports>
 
-Ответ:
-Только JSON.
+10) Периоды ("в июне 2025", "в 2025", "с 1 по 10 ноября")
+→ добавляй video_created_at_from и video_created_at_to
+
+11) "Сколько замеров / снапшотов, где просмотры уменьшились / стали отрицательными / стали меньше, чем в предыдущем замере"
+→ query_type = "count_negative_deltas"
+→ metric = "views"
+
+Ответ: только JSON, без текста, без комментариев.
 """
-
 
 
 def call_llm(messages):
@@ -94,7 +93,7 @@ def call_llm(messages):
 
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
-        "Referer": "https://github.com/doxi-ai/video-analytics-bot",
+        "HTTP-Referer": "https://github.com/doxi-ai/video-analytics-bot",
         "X-Title": "video-analytics-bot"
     }
 
