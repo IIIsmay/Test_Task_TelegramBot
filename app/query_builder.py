@@ -7,9 +7,9 @@ from app.db import fetchval
 logger = logging.getLogger(__name__)
 
 
-# ==============================
-#   Helpers
-# ==============================
+# --------------------------------------
+# Helpers
+# --------------------------------------
 def _parse_date(d: Optional[str]) -> Optional[date]:
     if not d:
         return None
@@ -22,9 +22,9 @@ def _parse_time(t: Optional[str]) -> Optional[time]:
     return time.fromisoformat(t)
 
 
-# ==============================
-#   Main query executor
-# ==============================
+# --------------------------------------
+# Main executor
+# --------------------------------------
 async def execute_query(q: Dict[str, Any]) -> int:
     qtype = q["query_type"]
     metric = q.get("metric")
@@ -32,9 +32,9 @@ async def execute_query(q: Dict[str, Any]) -> int:
 
     logger.info("Execute query_type=%s metric=%s filters=%s", qtype, metric, f)
 
-    # ----------------------------------------------------------------------
-    # COUNT VIDEOS (optionally by creator, dates, final_views_gt)
-    # ----------------------------------------------------------------------
+    # --------------------------------------
+    # 1) COUNT VIDEOS
+    # --------------------------------------
     if qtype == "count_videos":
         clauses = []
         params = []
@@ -56,14 +56,11 @@ async def execute_query(q: Dict[str, Any]) -> int:
             clauses.append(f"views_count > ${len(params)}")
 
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
-        return await fetchval(
-            f"SELECT COUNT(*) FROM videos {where}",
-            *params
-        )
+        return await fetchval(f"SELECT COUNT(*) FROM videos {where}", *params)
 
-    # ----------------------------------------------------------------------
-    # SUM FINAL METRIC ACROSS VIDEOS
-    # ----------------------------------------------------------------------
+    # --------------------------------------
+    # 2) SUM FINAL METRIC
+    # --------------------------------------
     if qtype == "sum_final_metric":
         clauses = []
         params = []
@@ -81,15 +78,13 @@ async def execute_query(q: Dict[str, Any]) -> int:
             clauses.append(f"video_created_at::date <= ${len(params)}")
 
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
-
         return await fetchval(
-            f"SELECT COALESCE(SUM({metric}_count), 0) FROM videos {where}",
-            *params
+            f"SELECT COALESCE(SUM({metric}_count), 0) FROM videos {where}", *params
         )
 
-    # ----------------------------------------------------------------------
-    # SUM DELTA METRIC IN ONE DAY
-    # ----------------------------------------------------------------------
+    # --------------------------------------
+    # 3) SUM DELTA IN ONE DAY
+    # --------------------------------------
     if qtype == "sum_delta_metric":
         d = _parse_date(f["snapshot_date"])
         return await fetchval(
@@ -98,12 +93,12 @@ async def execute_query(q: Dict[str, Any]) -> int:
             FROM video_snapshots
             WHERE created_at::date = $1
             """,
-            d
+            d,
         )
 
-    # ----------------------------------------------------------------------
-    # COUNT DISTINCT VIDEOS WHERE delta > 0
-    # ----------------------------------------------------------------------
+    # --------------------------------------
+    # 4) COUNT DISTINCT VIDEOS WITH POSITIVE DELTA
+    # --------------------------------------
     if qtype == "count_distinct_videos_delta_gt_zero":
         d = _parse_date(f["snapshot_date"])
         return await fetchval(
@@ -113,13 +108,12 @@ async def execute_query(q: Dict[str, Any]) -> int:
             WHERE created_at::date = $1
               AND delta_{metric}_count > 0
             """,
-            d
+            d,
         )
 
-    # ----------------------------------------------------------------------
-    # ⭐ NEW ⭐ SUM DELTA METRIC WITH TIME INTERVAL + CREATOR ID SUPPORT
-    # (This fixes your wrong result 4366 → correct 757)
-    # ----------------------------------------------------------------------
+    # --------------------------------------
+    # 5) INTERVAL SUM (THE FIX FOR 757!)
+    # --------------------------------------
     if qtype == "sum_delta_metric_interval":
         d = _parse_date(f["snapshot_date"])
         t1 = _parse_time(f.get("snapshot_time_from"))
@@ -148,10 +142,22 @@ async def execute_query(q: Dict[str, Any]) -> int:
             JOIN videos v ON v.id = s.video_id
             WHERE {" AND ".join(clauses)}
             """,
-            *params
+            *params,
         )
 
-    # ----------------------------------------------------------------------
-    # UNKNOWN QUERY TYPE
-    # ----------------------------------------------------------------------
+    # --------------------------------------
+    # 6) COUNT NEGATIVE DELTAS (FIX FOR 24)
+    # --------------------------------------
+    if qtype == "count_negative_deltas":
+        return await fetchval(
+            f"""
+            SELECT COUNT(*)
+            FROM video_snapshots
+            WHERE delta_{metric}_count < 0
+            """
+        )
+
+    # --------------------------------------
+    # UNKNOWN
+    # --------------------------------------
     raise ValueError(f"Unknown query_type: {qtype}")

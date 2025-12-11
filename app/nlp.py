@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 settings = Settings()
 
 SYSTEM_PROMPT = """
-Ты ассистент, который переводит русскоязычный запрос пользователя в СТРОГО ВАЛИДНЫЙ JSON 
-без пояснений и без текста вокруг.
+Ты ассистент, который переводит русскоязычный запрос пользователя
+в СТРОГО ВАЛИДНЫЙ JSON без пояснений и без текста вокруг.
 
 Есть база данных PostgreSQL с таблицами:
 
@@ -31,73 +31,70 @@ video_snapshots:
 - delta_reports_count
 - created_at (timestamptz)
 
-Верни JSON строго такого формата:
+Возвращай JSON строго такого формата:
 
 {
-  "query_type": "count_videos" 
-                | "sum_delta_metric" 
-                | "count_distinct_videos_delta_gt_zero"
-                | "sum_final_metric"
-                | "sum_delta_metric_interval"
-                | "count_negative_deltas",
+  "query_type": "count_videos"
+               | "sum_delta_metric"
+               | "count_distinct_videos_delta_gt_zero"
+               | "sum_final_metric"
+               | "sum_delta_metric_interval"
+               | "count_negative_deltas",
   "metric": "views" | "likes" | "comments" | "reports" | null,
   "filters": {
     "creator_id": string | null,
     "video_created_at_from": "YYYY-MM-DD" | null,
     "video_created_at_to": "YYYY-MM-DD" | null,
-
     "snapshot_date": "YYYY-MM-DD" | null,
     "snapshot_time_from": "HH:MM" | null,
     "snapshot_time_to": "HH:MM" | null,
-
     "final_views_gt": number | null
   }
 }
 
-Пояснения для выбора query_type:
+Правила:
 
 1) "Сколько всего видео"
-→ query_type = "count_videos"
+   → query_type="count_videos"
 
 2) "Сколько видео у креатора X"
-→ count_videos + creator_id
+   → count_videos + creator_id
 
-3) Любые фразы о периодах ("в июне", "в 2025", "с 1 по 10 ноября")
-→ используй video_created_at_from и video_created_at_to
+3) "Сколько видео в периоде / с даты A по B / в июне"
+   → count_videos + date_from + date_to
 
-4) "Сколько видео набрали больше N просмотров"
-→ count_videos + final_views_gt
+4) "Сколько видео набрало больше N просмотров"
+   → count_videos + final_views_gt
 
-5) "Сколько видео у креатора X набрали больше N просмотров"
-→ count_videos + creator_id + final_views_gt
+5) "Сколько видео у креатора X набрали больше N"
+   → count_videos + creator_id + final_views_gt
 
 6) "На сколько просмотров выросли все видео ДАТА"
-→ sum_delta_metric + metric="views" + snapshot_date
+   → sum_delta_metric + metric="views" + snapshot_date
 
 7) "Сколько разных видео получали новые просмотры ДАТА"
-→ count_distinct_videos_delta_gt_zero + metric="views" + snapshot_date
+   → count_distinct_videos_delta_gt_zero + metric="views" + snapshot_date
 
-8) "Какое суммарное количество просмотров набрали видео"
-→ sum_final_metric + metric="views"
+8) "Сколько всего просмотров/лайков/комментариев/репортов у всех видео"
+   → sum_final_metric + metric
 
-9) "Сколько всего лайков / комментариев / репортов у всех видео"
-→ sum_final_metric + metric=<likes/comments/reports>
+9) "Сколько просмотров/лайков/комментариев/репортов набрали видео за период"
+   → sum_final_metric + metric + date_from/to
 
-10) Интервалы по времени:
-   Если запрос содержит "между 10 и 15", "с 01:00 по 03:00", "за час", 
-   используй snapshot_time_from и snapshot_time_to.
+10) "В промежутке с 10:00 до 15:00"
+    → snapshot_time_from + snapshot_time_to
 
-   → Если просится суммировать изменения: query_type="sum_delta_metric_interval"
+11) "Сколько суммарно выросли просмотры в интервале времени"
+    → query_type="sum_delta_metric_interval" + metric="views"
 
-11) Если упоминается, что просмотры стали меньше, уменьшились, отрицательные изменения:
-   → query_type="count_negative_deltas"
-   metric="views"
+12) "Сколько было отрицательных изменений просмотров / упало просмотров"
+    → query_type="count_negative_deltas" + metric="views"
 
-Правила:
-- Всегда возвращай один JSON-объект.
-- Никаких комментариев, никакого текста вокруг JSON.
-- Значения timestamp-ов по времени только в формате HH:MM.
+13) Если метрика не упомянута — metric=null.
+
+Ответ — строго JSON без текста, без комментариев.
 """
+
 
 
 
