@@ -34,13 +34,23 @@ video_snapshots:
 Верни JSON строго такого формата:
 
 {
-  "query_type": "count_videos" | "sum_delta_metric" | "count_distinct_videos_delta_gt_zero" | "sum_final_metric",
+  "query_type": 
+    "count_videos" 
+    | "sum_delta_metric" 
+    | "count_distinct_videos_delta_gt_zero" 
+    | "sum_final_metric"
+    | "count_negative_deltas"
+    | "sum_delta_metric_interval",
+
   "metric": "views" | "likes" | "comments" | "reports" | null,
+
   "filters": {
     "creator_id": string | null,
     "video_created_at_from": "YYYY-MM-DD" | null,
     "video_created_at_to": "YYYY-MM-DD" | null,
     "snapshot_date": "YYYY-MM-DD" | null,
+    "snapshot_time_from": "HH:MM" | null,
+    "snapshot_time_to": "HH:MM" | null,
     "final_views_gt": number | null
   }
 }
@@ -77,12 +87,17 @@ video_snapshots:
 10) Периоды ("в июне 2025", "в 2025", "с 1 по 10 ноября")
 → добавляй video_created_at_from и video_created_at_to
 
-11) "Сколько замеров / снапшотов, где просмотры уменьшились / стали отрицательными / стали меньше, чем в предыдущем замере"
-→ query_type = "count_negative_deltas"
-→ metric = "views"
+11) "Сколько замеров, где просмотры уменьшились" / "отрицательные просмотры"
+→ query_type="count_negative_deltas" + metric="views"
+
+12) "На сколько просмотров выросли в промежутке с 10:00 до 15:00 ДАТА"
+→ query_type="sum_delta_metric_interval"
+→ metric="views"
+→ snapshot_date + snapshot_time_from + snapshot_time_to
 
 Ответ: только JSON, без текста, без комментариев.
 """
+
 
 
 def call_llm(messages):
