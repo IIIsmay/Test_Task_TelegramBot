@@ -1,10 +1,20 @@
 import asyncio
-from aiogram import F
+import logging
 
-from .bot import dp, bot
+from app.bot import dp, bot
+from app.logger import setup_logging
 
 
 async def main():
+    setup_logging()
+
+    # Включаем логирование aiogram
+    logging.getLogger("aiogram").setLevel(logging.INFO)
+    logging.getLogger("aiohttp").setLevel(logging.INFO)
+
+    logger = logging.getLogger(__name__)
+    logger.info("Telegram bot starting")
+
     await dp.start_polling(bot)
 
 

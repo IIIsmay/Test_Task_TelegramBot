@@ -1,7 +1,10 @@
 from datetime import date
 from typing import Dict, Any
+import logging
 
 from app.db import fetchval
+
+logger = logging.getLogger(__name__)
 
 
 async def execute_query(query_struct: Dict[str, Any]) -> int:
@@ -9,87 +12,61 @@ async def execute_query(query_struct: Dict[str, Any]) -> int:
     metric = query_struct.get("metric")
     filters = query_struct.get("filters", {})
 
-    # =========================
-    # 1. Сколько всего видео
-    # =========================
+    logger.info(
+        "Execute query_type=%s metric=%s filters=%s",
+        query_type,
+        metric,
+        filters,
+    )
+
     if query_type == "count_videos":
-        where_clauses = []
+        clauses = []
         params = []
 
-        creator_id = filters.get("creator_id")
-        if creator_id:
-            params.append(creator_id)
-            where_clauses.append(f"creator_id = ${len(params)}")
+        if filters.get("creator_id"):
+            params.append(filters["creator_id"])
+            clauses.append(f"creator_id = ${len(params)}")
 
-        date_from = filters.get("video_created_at_from")
-        if date_from:
-            params.append(date.fromisoformat(date_from))
-            where_clauses.append(f"video_created_at::date >= ${len(params)}")
+        if filters.get("video_created_at_from"):
+            params.append(date.fromisoformat(filters["video_created_at_from"]))
+            clauses.append(f"video_created_at::date >= ${len(params)}")
 
-        date_to = filters.get("video_created_at_to")
-        if date_to:
-            params.append(date.fromisoformat(date_to))
-            where_clauses.append(f"video_created_at::date <= ${len(params)}")
+        if filters.get("video_created_at_to"):
+            params.append(date.fromisoformat(filters["video_created_at_to"]))
+            clauses.append(f"video_created_at::date <= ${len(params)}")
 
-        final_views_gt = filters.get("final_views_gt")
-        if final_views_gt is not None:
-            params.append(final_views_gt)
-            where_clauses.append(f"views_count > ${len(params)}")
+        if filters.get("final_views_gt") is not None:
+            params.append(filters["final_views_gt"])
+            clauses.append(f"views_count > ${len(params)}")
 
-        where_sql = ""
-        if where_clauses:
-            where_sql = "WHERE " + " AND ".join(where_clauses)
+        where = "WHERE " + " AND ".join(clauses) if clauses else ""
 
-        sql = f"""
-            SELECT COUNT(*)
-            FROM videos
-            {where_sql}
-        """
-        return await fetchval(sql, *params)
+        return await fetchval(
+            f"SELECT COUNT(*) FROM videos {where}",
+            *params
+        )
 
-    # ==========================================
-    # 2. На сколько <metric> выросли за дату
-    # ==========================================
-    elif query_type == "sum_delta_metric":
-        if not metric:
-            raise ValueError("metric обязателен для sum_delta_metric")
-
-        snapshot_date = filters.get("snapshot_date")
-        if not snapshot_date:
-            raise ValueError("snapshot_date обязателен")
-
-        snapshot_date = date.fromisoformat(snapshot_date)
-
-        sql = f"""
+    if query_type == "sum_delta_metric":
+        d = date.fromisoformat(filters["snapshot_date"])
+        return await fetchval(
+            f"""
             SELECT COALESCE(SUM(delta_{metric}_count), 0)
             FROM video_snapshots
             WHERE created_at::date = $1
-        """
-        return await fetchval(sql, snapshot_date)
+            """,
+            d,
+        )
 
-    # =========================================================
-    # 3. Сколько разных видео имели приращение > 0 за дату
-    # =========================================================
-    elif query_type == "count_distinct_videos_delta_gt_zero":
-        if not metric:
-            raise ValueError("metric обязателен")
-
-        snapshot_date = filters.get("snapshot_date")
-        if not snapshot_date:
-            raise ValueError("snapshot_date обязателен")
-
-        snapshot_date = date.fromisoformat(snapshot_date)
-
-        sql = f"""
+    if query_type == "count_distinct_videos_delta_gt_zero":
+        d = date.fromisoformat(filters["snapshot_date"])
+        return await fetchval(
+            f"""
             SELECT COUNT(DISTINCT video_id)
             FROM video_snapshots
             WHERE created_at::date = $1
               AND delta_{metric}_count > 0
-        """
-        return await fetchval(sql, snapshot_date)
+            """,
+            d,
+        )
 
-    # =========================
-    # 4. Неизвестный тип
-    # =========================
-    else:
-        raise ValueError(f"Неизвестный query_type: {query_type}")
+    raise ValueError(f"Unknown query_type: {query_type}")

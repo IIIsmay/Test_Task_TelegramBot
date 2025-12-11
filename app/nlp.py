@@ -1,10 +1,12 @@
 import json
-import os
+import logging
 from typing import Any, Dict
 
 import requests
 
 from app.config import Settings
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """
 Ты ассистент, который переводит русскоязычные запросы пользователя
@@ -62,7 +64,7 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def call_llm(messages):
+def call_llm(messages) -> Dict[str, Any]:
     settings = get_settings()
 
     if settings.ai_provider != "openrouter":
@@ -71,33 +73,38 @@ def call_llm(messages):
     if not settings.openrouter_api_key:
         raise RuntimeError("OPENROUTER_API_KEY не задан")
 
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost",
-        "X-Title": "telegram-video-analytics-bot",
-    }
+    logger.info("Calling OpenRouter model=%s", settings.openrouter_model)
 
-    payload = {
-        "model": settings.openrouter_model,
-        "messages": messages,
-        "temperature": 0,
-    }
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {settings.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost",
+            "X-Title": "telegram-video-analytics-bot",
+        },
+        json={
+            "model": settings.openrouter_model,
+            "messages": messages,
+            "temperature": 0,
+        },
+        timeout=30,
+    )
 
-    resp = requests.post(url, headers=headers, json=payload, timeout=30)
-    resp.raise_for_status()
+    response.raise_for_status()
+    content = response.json()["choices"][0]["message"]["content"]
 
-    content = resp.json()["choices"][0]["message"]["content"]
+    logger.info("LLM raw response: %s", content)
 
     try:
         return json.loads(content)
     except json.JSONDecodeError:
-        raise ValueError(f"LLM вернул невалидный JSON:\n{content}")
-
+        raise ValueError(f"Invalid JSON from LLM:\n{content}")
 
 
 async def parse_query(user_text: str) -> Dict[str, Any]:
+    logger.info("Parsing user query: %s", user_text)
+
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_text},
